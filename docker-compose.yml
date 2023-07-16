@@ -1,0 +1,65 @@
+version: "3.1"
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: wpmysql
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./mysql-import:/tmp
+    secrets:
+      - db_name
+      - db_user
+      - db_password
+    environment:
+      - "MYSQL_DATABASE_FILE=/run/secrets/db_name"
+      - "MYSQL_USER_FILE=/run/secrets/db_user"
+      - "MYSQL_PASSWORD_FILE=/run/secrets/db_password"
+      - "MYSQL_RANDOM_ROOT_PASSWORD=yes"
+    networks:
+      - network
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: wpphpmyadmin
+    environment:
+      - PMA_ARBITRARY=1
+      - UPLOAD_LIMIT=2048M
+    ports:
+      - 8080:80
+    volumes:
+      - /sessions
+      - ./uploads.ini:/usr/local/etc/php/conf.d/php-phpmyadmin.ini
+    networks:
+      - network
+  wordpress:
+    depends_on:
+      - db
+    image: wordpress:latest
+    container_name: wp
+    ports:
+      - "8000:80"
+    secrets:
+      - db_name
+      - db_user
+      - db_password
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME_FILE: /run/secrets/db_name
+      WORDPRESS_DB_USER_FILE: /run/secrets/db_user
+      WORDPRESS_DB_PASSWORD_FILE: /run/secrets/db_password
+    volumes:
+      - ./wp-content:/var/www/html/wp-content
+      - ./uploads.ini:/usr/local/etc/php/conf.d/uploads.ini
+    networks:
+      - network
+volumes:
+  db_data:
+secrets:
+  db_name:
+    file: ./secrets_db_name.txt
+  db_user:
+    file: ./secrets_db_user.txt
+  db_password:
+    file: ./secrets_db_password.txt
+networks:
+  network:
